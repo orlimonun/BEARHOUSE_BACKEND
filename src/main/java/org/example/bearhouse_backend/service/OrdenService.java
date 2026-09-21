@@ -1,9 +1,6 @@
 package org.example.bearhouse_backend.service;
 
-import org.example.bearhouse_backend.dto.orden.DetalleOrdenRequestDTO;
-import org.example.bearhouse_backend.dto.orden.DetalleOrdenResponseDTO;
-import org.example.bearhouse_backend.dto.orden.OrdenRequestDTO;
-import org.example.bearhouse_backend.dto.orden.OrdenResponseDTO;
+import org.example.bearhouse_backend.dto.orden.*;
 import org.example.bearhouse_backend.entity.*;
 import org.example.bearhouse_backend.enums.EstadoOrden;
 import org.example.bearhouse_backend.enums.MetodoPago;
@@ -16,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrdenService {
@@ -28,7 +27,7 @@ public class OrdenService {
     private final MovimientoInventarioRepository movimientoRepository;
     private final EmpleadoRepository empleadoRepository;
     private final MesaRepository mesaRepository;
-
+    private final PagoRepository pagoRepository;
     private static final BigDecimal TARIFA_TRANSPORTE = new BigDecimal("1000");
     private static final BigDecimal KM_POR_BLOQUE = new BigDecimal("3");
 
@@ -38,7 +37,7 @@ public class OrdenService {
                         IngredienteRepository ingredienteRepository,
                         MovimientoInventarioRepository movimientoRepository,
                         EmpleadoRepository empleadoRepository,
-                        MesaRepository mesaRepository) {
+                        MesaRepository mesaRepository, PagoRepository pagoRepository) {
         this.ordenRepository = ordenRepository;
         this.platilloRepository = platilloRepository;
         this.recetaRepository = recetaRepository;
@@ -46,6 +45,7 @@ public class OrdenService {
         this.movimientoRepository = movimientoRepository;
         this.empleadoRepository = empleadoRepository;
         this.mesaRepository = mesaRepository;
+        this.pagoRepository = pagoRepository;
     }
 
     // Calcula el cargo de transporte según los kilómetros.
@@ -65,11 +65,12 @@ public class OrdenService {
         dto.setPlatilloId(detalle.getPlatillo().getId());
         dto.setPlatilloNombre(detalle.getPlatillo().getNombre());
         dto.setCantidad(detalle.getCantidad());
+        dto.setCantidadPagada(detalle.getCantidadPagada());
+        dto.setCantidadPendiente(detalle.getCantidadPendiente());
         dto.setPrecioUnitario(detalle.getPrecioUnitario());
         dto.setSubtotal(detalle.getSubtotal());
         return dto;
     }
-
 
     private OrdenResponseDTO convertirAResponseDTO(Orden orden) {
         OrdenResponseDTO dto = new OrdenResponseDTO();
@@ -89,15 +90,42 @@ public class OrdenService {
             dto.setMesaId(orden.getMesa().getId());
             dto.setMesaNumero(orden.getMesa().getNumero());
         }
-
         if (orden.getEmpleado() != null) {
             dto.setEmpleadoId(orden.getEmpleado().getId());
             dto.setEmpleadoNombre(orden.getEmpleado().getNombre());
         }
 
+        // Saldo: lo que falta de los ítems + el transporte (que se cobra al saldar)
+        BigDecimal saldo;
+        BigDecimal pagado;
+        if (orden.getEstado() == EstadoOrden.CANCELADA) {
+            saldo = BigDecimal.ZERO;
+            pagado = BigDecimal.ZERO;
+        } else if (orden.getEstado() == EstadoOrden.PAGADA) {
+            saldo = BigDecimal.ZERO;
+            pagado = orden.getTotal();
+        } else {
+            BigDecimal pendienteItems = orden.getDetalles().stream()
+                    .map(l -> l.getPrecioUnitario().multiply(BigDecimal.valueOf(l.getCantidadPendiente())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal transporte = orden.getTransporte() != null ? orden.getTransporte() : BigDecimal.ZERO;
+            saldo = pendienteItems.add(transporte);
+            pagado = orden.getTotal().subtract(saldo);
+        }
+        dto.setSaldoPendiente(saldo);
+        dto.setMontoPagado(pagado);
+
         dto.setDetalles(orden.getDetalles()
                 .stream()
                 .map(this::convertirDetalleAResponseDTO)
+                .toList());
+        // Desglose de cuánto se pagó con cada método
+        Map<MetodoPago, BigDecimal> porMetodo = new LinkedHashMap<>();
+        for (Pago p : pagoRepository.findByOrdenIdOrderByFechaAsc(orden.getId())) {
+            porMetodo.merge(p.getMetodoPago(), p.getMonto(), BigDecimal::add);
+        }
+        dto.setPagosPorMetodo(porMetodo.entrySet().stream()
+                .map(e -> new TotalPorMetodoDTO(e.getKey().name(), e.getValue()))
                 .toList());
         return dto;
     }
@@ -263,6 +291,13 @@ public class OrdenService {
 
         if (orden.getEstado() == EstadoOrden.CANCELADA) {
             throw new IllegalArgumentException("La orden ya está cancelada");
+        }
+
+        boolean tienePagos = orden.getDetalles().stream()
+                .anyMatch(linea -> linea.getCantidadPagada() > 0);
+        if (tienePagos) {
+            throw new IllegalArgumentException(
+                    "No se puede cancelar una orden que ya tiene pagos registrados");
         }
 
         // Devolver al stock los ingredientes que la orden había descontado

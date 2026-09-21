@@ -10,7 +10,8 @@ public class DetalleOrdenResponseDTO {
     private Integer cantidad;
     private BigDecimal precioUnitario;
     private BigDecimal subtotal;
-
+    private Integer cantidadPagada;
+    private Integer cantidadPendiente;
     public Integer getId() {
         return id;
     }
@@ -57,5 +58,21 @@ public class DetalleOrdenResponseDTO {
 
     public void setSubtotal(BigDecimal subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public Integer getCantidadPagada() {
+        return cantidadPagada;
+    }
+
+    public void setCantidadPagada(Integer cantidadPagada) {
+        this.cantidadPagada = cantidadPagada;
+    }
+
+    public Integer getCantidadPendiente() {
+        return cantidadPendiente;
+    }
+
+    public void setCantidadPendiente(Integer cantidadPendiente) {
+        this.cantidadPendiente = cantidadPendiente;
     }
 }

@@ -22,11 +22,21 @@ public class DetalleOrden {
     @Column(name = "cantidad", nullable = false)
     private Integer cantidad;
 
+    @Column(name = "cantidad_pagada", nullable = false)
+    private Integer cantidadPagada = 0;
+
     @Column(name = "precio_unitario", nullable = false, precision = 10, scale = 2)
     private BigDecimal precioUnitario;
 
     @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal;
+
+    // Unidades que todavía falta cobrar de esta línea
+    public int getCantidadPendiente() {
+        return cantidad - (cantidadPagada != null ? cantidadPagada : 0);
+    }
+
+    // Getters y setters (Alt+Insert), incluido el de cantidadPagada
 
     public Integer getId() {
         return id;
@@ -58,6 +68,14 @@ public class DetalleOrden {
 
     public void setCantidad(Integer cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public Integer getCantidadPagada() {
+        return cantidadPagada;
+    }
+
+    public void setCantidadPagada(Integer cantidadPagada) {
+        this.cantidadPagada = cantidadPagada;
     }
 
     public BigDecimal getPrecioUnitario() {

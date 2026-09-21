@@ -3,7 +3,9 @@ package org.example.bearhouse_backend.controller;
 import jakarta.validation.Valid;
 import org.example.bearhouse_backend.dto.orden.OrdenRequestDTO;
 import org.example.bearhouse_backend.dto.orden.OrdenResponseDTO;
+import org.example.bearhouse_backend.dto.pago.PagoResponseDTO;
 import org.example.bearhouse_backend.service.OrdenService;
+import org.example.bearhouse_backend.service.PagoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,15 +18,16 @@ import java.util.List;
 public class OrdenController {
 
     private final OrdenService ordenService;
+    private final PagoService pagoService;
 
-    public OrdenController(OrdenService ordenService) {
+    public OrdenController(OrdenService ordenService, PagoService pagoService) {
         this.ordenService = ordenService;
+        this.pagoService = pagoService;
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MESERO')")
-    public ResponseEntity<OrdenResponseDTO> crear(
-            @Valid @RequestBody OrdenRequestDTO requestDTO) {
+    public ResponseEntity<OrdenResponseDTO> crear(@Valid @RequestBody OrdenRequestDTO requestDTO) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ordenService.crearOrden(requestDTO));
     }
 
@@ -40,16 +43,16 @@ public class OrdenController {
         return ResponseEntity.ok(ordenService.buscarPorId(id));
     }
 
-    // Marcar una orden como pagada
+    // "Todo junto": cobra todo lo pendiente en un solo pago
     @PatchMapping("/{id}/pagar")
     @PreAuthorize("hasAnyRole('ADMIN', 'MESERO')")
-    public ResponseEntity<OrdenResponseDTO> pagar(
+    public ResponseEntity<PagoResponseDTO> pagar(
             @PathVariable Integer id,
             @RequestParam(required = false) String metodoPago) {
-        return ResponseEntity.ok(ordenService.pagarOrden(id, metodoPago));
+        String metodo = (metodoPago != null && !metodoPago.isBlank()) ? metodoPago : "EFECTIVO";
+        return ResponseEntity.ok(pagoService.pagarTodo(id, metodo));
     }
 
-    // Cancelar una orden (devuelve stock)
     @PatchMapping("/{id}/cancelar")
     @PreAuthorize("hasAnyRole('ADMIN', 'MESERO')")
     public ResponseEntity<OrdenResponseDTO> cancelar(@PathVariable Integer id) {

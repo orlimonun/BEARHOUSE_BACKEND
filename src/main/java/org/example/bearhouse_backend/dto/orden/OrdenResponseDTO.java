@@ -22,6 +22,9 @@ public class OrdenResponseDTO {
     private BigDecimal total;
     private String observaciones;
     private List<DetalleOrdenResponseDTO> detalles;
+    private BigDecimal montoPagado;
+    private BigDecimal saldoPendiente;
+    private List<TotalPorMetodoDTO> pagosPorMetodo;
 
     public Integer getId() {
         return id;
@@ -149,5 +152,29 @@ public class OrdenResponseDTO {
 
     public void setDetalles(List<DetalleOrdenResponseDTO> detalles) {
         this.detalles = detalles;
+    }
+
+    public BigDecimal getMontoPagado() {
+        return montoPagado;
+    }
+
+    public void setMontoPagado(BigDecimal montoPagado) {
+        this.montoPagado = montoPagado;
+    }
+
+    public BigDecimal getSaldoPendiente() {
+        return saldoPendiente;
+    }
+
+    public void setSaldoPendiente(BigDecimal saldoPendiente) {
+        this.saldoPendiente = saldoPendiente;
+    }
+
+    public List<TotalPorMetodoDTO> getPagosPorMetodo() {
+        return pagosPorMetodo;
+    }
+
+    public void setPagosPorMetodo(List<TotalPorMetodoDTO> pagosPorMetodo) {
+        this.pagosPorMetodo = pagosPorMetodo;
     }
 }
