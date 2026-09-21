@@ -1,8 +1,6 @@
 package org.example.bearhouse_backend.controller;
 
-import org.example.bearhouse_backend.dto.reporte.PlatilloVendidoDTO;
-import org.example.bearhouse_backend.dto.reporte.ResumenGeneralDTO;
-import org.example.bearhouse_backend.dto.reporte.VentasPorPeriodoDTO;
+import org.example.bearhouse_backend.dto.reporte.*;
 import org.example.bearhouse_backend.service.ReporteService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -47,4 +45,17 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.resumenGeneral(desde, hasta));
     }
 
+    @GetMapping("/compras/resumen")
+    public ResponseEntity<ResumenComprasDTO> resumenCompras(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        return ResponseEntity.ok(reporteService.resumenCompras(desde, hasta));
+    }
+
+    @GetMapping("/compras/ingredientes-mas-comprados")
+    public ResponseEntity<List<IngredienteCompradoDTO>> ingredientesMasComprados(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime hasta) {
+        return ResponseEntity.ok(reporteService.ingredientesMasComprados(desde, hasta));
+    }
 }

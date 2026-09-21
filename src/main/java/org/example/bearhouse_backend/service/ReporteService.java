@@ -1,9 +1,10 @@
 package org.example.bearhouse_backend.service;
 
-import org.example.bearhouse_backend.dto.reporte.PlatilloVendidoDTO;
-import org.example.bearhouse_backend.dto.reporte.ResumenGeneralDTO;
-import org.example.bearhouse_backend.dto.reporte.VentasPorPeriodoDTO;
-import org.example.bearhouse_backend.dto.reporte.VentasPorTipoDTO;
+import org.example.bearhouse_backend.dto.ingrediente.IngredienteResponseDTO;
+import org.example.bearhouse_backend.dto.reporte.*;
+import org.example.bearhouse_backend.entity.Ingrediente;
+import org.example.bearhouse_backend.repository.CompraRepository;
+import org.example.bearhouse_backend.repository.IngredienteRepository;
 import org.example.bearhouse_backend.repository.OrdenRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +19,13 @@ import java.util.List;
 public class ReporteService {
 
     private final OrdenRepository ordenRepository;
+    private final CompraRepository compraRepository;
+    private final IngredienteRepository ingredienteRepository;
 
-    public ReporteService(OrdenRepository ordenRepository) {
+    public ReporteService(OrdenRepository ordenRepository,CompraRepository compraRepository, IngredienteRepository ingredienteRepository) {
         this.ordenRepository = ordenRepository;
+        this.compraRepository = compraRepository;
+        this.ingredienteRepository = ingredienteRepository;
     }
 
     @Transactional(readOnly = true)
@@ -87,6 +92,47 @@ public class ReporteService {
         dto.setTicketPromedio(ticketPromedio);
         dto.setDesglosePorTipo(desglose);
         return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public ResumenComprasDTO resumenCompras(LocalDateTime desde, LocalDateTime hasta) {
+        BigDecimal totalGastado = compraRepository.calcularGastoTotal(desde, hasta);
+        Long totalCompras = compraRepository.contarCompras(desde, hasta);
+
+        BigDecimal promedio = BigDecimal.ZERO;
+        if (totalCompras != null && totalCompras > 0) {
+            promedio = totalGastado.divide(new BigDecimal(totalCompras), 2, RoundingMode.HALF_UP);
+        }
+
+        List<GastoPorProveedorDTO> porProveedor = new ArrayList<>();
+        for (Object[] fila : compraRepository.gastoPorProveedor(desde, hasta)) {
+            porProveedor.add(new GastoPorProveedorDTO(
+                    (String) fila[0],
+                    (Long) fila[1],
+                    (BigDecimal) fila[2]));
+        }
+
+        ResumenComprasDTO dto = new ResumenComprasDTO();
+        dto.setDesde(desde);
+        dto.setHasta(hasta);
+        dto.setTotalCompras(totalCompras);
+        dto.setTotalGastado(totalGastado);
+        dto.setPromedioPorCompra(promedio);
+        dto.setGastoPorProveedor(porProveedor);
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<IngredienteCompradoDTO> ingredientesMasComprados(LocalDateTime desde, LocalDateTime hasta) {
+        List<IngredienteCompradoDTO> lista = new ArrayList<>();
+        for (Object[] fila : ingredienteRepository.ingredientesMasComprados(desde, hasta)) {
+            lista.add(new IngredienteCompradoDTO(
+                    (String) fila[0],
+                    (String) fila[1],
+                    (BigDecimal) fila[2],
+                    (BigDecimal) fila[3]));
+        }
+        return lista;
     }
 
 }
